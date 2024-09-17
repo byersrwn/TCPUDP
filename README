@@ -1,0 +1,86 @@
+Author: Will Byers, CWID 10927669
+
+This project was written in python v3.12.2 and there are 2 main files: client.py and server.py. Server code was uploaded to Isengard and tested. For testing, I recommend loading a terminal on a local machine to launch the server code. In a separate terminal on that local machine, run the client code. Code can be changed to use internet IP addresses by uncommenting lines 11 and 12 from server.py and using the IP address that is printed on server.py startup for client commands (additionally line 10 would need to be commented out that defines the server hostname as 'localhost') 
+
+Below are the instructions on how to launch each service and the expected outputs:
+
+client.py:
+    *Note* to initiate a receive call, the client sends the string "receive" to the server. 
+    *Note* The server hostname is statically set to 'localhost'. Please pnly use 'localhost' for client communications. If you wish to use IP addresses, see the intro paragraph.
+    To launch client.py, the arguments and format are the same as described in the assignment description. Commandline execution examples shown below:
+       Launch client to send msg1.txt file:  "python3 client.py localhost 8080 TCP send msg1.txt"
+       Launch client to receive server messege: "python3 client.py localhost 8080 TCP receive"
+            For the receive command, my client sends the instruction string "receive" to the server
+    For UDP, the examples are the same but with "UDP" instead of TCP.
+    A general execution format is below:
+        python3 client.py <Hostname> <PortNumber> <SocketType> <Mode> <FilePath>
+    Print Statements:
+        Upon a send request, the client will not print any messages to the console as is also seen in the example sample output in the project description.
+        For receive requests, the client will print "Message received from server:" followed by the message on a new line.
+
+server.py:
+    *Note* I have the hostname 'localhost' statically defined as the hostname of the server. Please use 'localhost' for client commands
+    To launch server.py, the arguments and format are the same as described in the assignment description. Commandline execution examples shown below:
+        python3 server.py 8080 TCP
+    The general format of executing the server from the commandline is:
+        python3 server.py <PortNumber> <SocketType>
+
+Design:
+    The code has 2 different files, client.py and server.py. Each is described in more detail below:
+        client.py:
+            1.Takes and parses command line arguments
+            2.Makes a decision based on SocketType input to run the TCP or UDP if statements and creates a respective client_socket that uses TCP or UDP
+            3.Once a TCP or UDP branch has been taken, client.py determines if there is a send or receive command
+            4.For a send command, the file path given in the command line is opened and read.
+                4b.The client_socket is used to send the message and then the file and client socket are closed and the client terminates.
+            5.For receive commands, the string 'receive' is sent over the client_socket to the server.
+                5b.The recv (for TCP) or recvfrom (for UPD) functions are used to receive data back from the server.
+                5c.This data is printed and the socket is closed.
+
+        server.py
+            1.PortNumber and SocketType are parsed from the command line
+            2.The hostname is defined as 'localhost' on line 10
+            3.A global message queue is createc (implemented as thread safe in python. I still used locks to be consistent with the spirit of this assignment)
+            4.If statements are used to determine weather to run the 'TCP' or 'UDP' functions by using the SocketType input
+            5.For TCP:
+                5a.A TCP socket is created, binded to the hostname ('localhost') and portnumber
+                5b.The new socket begins listening and has a connection queue of 128
+                5c.A thread lock is created
+                5d.An infinite while loop begins, waiting for connections
+                5e. Once a connection is accepted, the socket receives the data, acquires the lock and runs the critical function 'TCPThread' with a new thread. This function manipulates the global queue.
+                5f.Once critical code has completed, we wait for the thread to complete and then release the lock and continue the while loop.
+            6. For UDP:
+                Many of the same steps apply here for UDP but there are a few changes. The recvfrom function is used instead of the recv function for receiveing data. The 'UDPThread' function is used as the critical code function. The UDP socket does not need to initiate a listen call.
+
+To Test:
+    1. Launch server.py in a local terminal with a portnumber and SocketType
+        1a. With no changes, the server will be defined with 'localhost' hostname
+        1b. If being tested on a different machine, uncomment lines 11 & 12 in server.py and comment line 10. On server startup, a IP address will be printed that can be passed via the command line to the client
+    2. Open another terminal and begin launching client commands:
+        2a. Assuming no changes to the code are made, the following commands can be run:
+            % python3 client.py localhost 8080 TCP send msgFolder/msg1.txt 
+            % python3 client.py localhost 8080 TCP receive 
+            FOR UDP:  
+            % python3 client.py localhost 8080 UDP send msgFolder/msg1.txt 
+            % python3 client.py localhost 8080 UDP receive     
+        2b. If the server.py lines 11 and 12 are being used, the outputed IP address from server.py will need toreplace 'localhost' in the above commands     
+
+
+Sample Output:
+    Below is a series of expected print statements for the client (send, receive, receive, send, send, receive, receive) using local text files (msgFolder/msg1.txt & msgFolder/msg2.txt are local files. You will need to use your own)
+
+% python3 client.py localhost 8080 TCP send msgFolder/msg1.txt 
+% python3 client.py localhost 8080 TCP receive                
+Messege received from server:
+This is msg 1
+% python3 client.py localhost 8080 TCP receive
+Messege received from server:
+Error: No Messages
+% python3 client.py localhost 8080 TCP send msgFolder/msg1.txt
+% python3 client.py localhost 8080 TCP send msgFolder/msg2.txt
+% python3 client.py localhost 8080 TCP receive                
+Messege received from server:
+This is msg 1
+% python3 client.py localhost 8080 TCP receive
+Messege received from server:
+This is msg 2
